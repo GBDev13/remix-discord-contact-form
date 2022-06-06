@@ -13,7 +13,6 @@ import {
 } from '@chakra-ui/react';
 import type { ActionFunction } from '@remix-run/node';
 import { Form, useActionData, useTransition } from '@remix-run/react';
-import axios from 'axios';
 import { useEffect, useRef } from 'react';
 import { BsPerson } from 'react-icons/bs';
 import { MdOutlineEmail } from 'react-icons/md';
@@ -37,7 +36,9 @@ export const action: ActionFunction = async ({ request }) => {
     message: formData.get("message")
   };
 
-  if(!sender?.name || !sender?.email || !sender?.message) {
+  const file = formData.get('file') as File;
+
+  if(!sender?.name || !sender?.email || !sender?.message || !file) {
     return {
       error: true,
       message: 'Todos os campos são obrigatórios!'
@@ -68,15 +69,23 @@ export const action: ActionFunction = async ({ request }) => {
             value: sender.message,
           },
         ],
-      },
-    ],
+      }
+    ]
   };
 
+  const embedFormData = new FormData();
+  embedFormData.append("payload_json", JSON.stringify(messageData));
+  embedFormData.append("file", file);
+  
   try {
-    await axios.post(url, messageData);
-  } catch {
+    await fetch(url, {
+      method: 'POST',
+      body: embedFormData
+    });
+  } catch (err) {
     return {
       error: true,
+      code: err,
       message: "Ocorreu um erro inesperado ao enviar sua mensagem. Tente novamente!"
     }
   }
@@ -134,7 +143,7 @@ export default function Contact() {
         p={8}
         color='whiteAlpha.900'
         shadow="base">
-        <Form ref={formRef} method="post">
+        <Form ref={formRef} method="post" encType='multipart/form-data'>
           <VStack spacing={5}>
             <FormControl isRequired>
               <FormLabel>Nome</FormLabel>
@@ -168,6 +177,8 @@ export default function Contact() {
                 resize="none"
               />
             </FormControl>
+
+            <input type="file" name="file"/>
 
             <Button w="full" type="submit" isLoading={!!isSending} name="_action" value="send">
               Enviar mensagem
